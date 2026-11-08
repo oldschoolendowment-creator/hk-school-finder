@@ -25,6 +25,7 @@ Double-click `index.html`. It needs an internet connection for the map backgroun
 | `through_train.csv` | Linked "through-train" primary and secondary schools | [EDB Through-train Schools](https://data.gov.hk/en-data/dataset/hk-edb-tts2-through-train-school-list) |
 | `dssinfo.csv`, `dssfee.csv` | Direct Subsidy Scheme schools and fees | [EDB DSS schools](https://data.gov.hk/en-data/dataset/hk-edb-dss-dds-school-list) |
 | `kg_profiles.csv` | Kindergarten profiles 2025/26 | [EDB Kindergarten Profiles](https://data.gov.hk/en-data/dataset/hk-edb-kgjoinkes-kg-profile) |
+| `chsc_primary_profiles.csv` | Primary School Profiles 2026 (English): teaching language, feeder/nominated/through-train secondaries, tests and exams, school day, teachers, classes. Covers government, aided, DSS and some private primaries, not ESF or international | [CHSC Primary School Profiles](https://data.gov.hk/en-data/dataset/chsc-chsc-primary-school-profiles) (`psp_2026_en.csv`) |
 | `net.csv` | List of nets and the areas they cover | Same as the net boundaries |
 
 Address search uses the government [Address Lookup Service](https://www.als.gov.hk), live from the browser. Hong Kong has no postcodes, so you type a building, estate or street.
@@ -41,4 +42,5 @@ The P1 booklet comes out each August for the following year's entry.
 
 - **No quality ratings.** Hong Kong publishes no Ofsted-style grades or school league tables, so pins are coloured by type of school.
 - **No ESF catchment maps.** ESF assigns schools by home address but doesn't publish its catchments as data.
-- **Feeder and nominated secondary links** aren't open data; only through-train links are. They are on each school's profile at chsc.hk.
+- **Secondary school profiles** (CHSC publishes these too) aren't added yet; only primaries have a School Profile section.
+- **schooland.hk** was considered but not used: its terms forbid republishing its content, and the parts the app needed come from the official profiles above.

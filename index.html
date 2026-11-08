@@ -504,6 +504,7 @@ function applyFilters() {
     `• P1 discretionary places: EDB "Primary School Lists by School Net" booklet for Primary One Admission 2027 (${esc(DATA_INFO.p1Booklet)}).<br>` +
     `• Secondary nets served: EDB "SSPA System School Net Information".<br>` +
     `• DSS fees, through-train schools and kindergarten profiles: EDB.<br>` +
+    `• Primary school profiles (teaching language, feeder and nominated secondaries, tests, school day, teachers): Committee on Home-School Co-operation, "Primary School Profiles 2026".<br>` +
     `• Address search: the government Address Lookup Service (als.gov.hk).<br><br>` +
     `Hong Kong publishes <b>no</b> official league tables, exam results by school or inspection grades like Ofsted's, so pins are coloured by type of school, not quality. Secondary "banding" figures you see on property and tutoring websites are unofficial.`;
 })();
@@ -620,6 +621,46 @@ function admissionsSection(s) {
   return ["◎", "Admissions & School Net", badge, body];
 }
 
+// A primary's links to secondary schools, from the official Primary School Profiles.
+// Through-train: pupils move up automatically. Feeder: the secondary may keep up to
+// 85% of its Secondary One places for this primary's pupils. Nominated: up to 25%.
+function linkedSecondaries(s) {
+  const p = s.psp;
+  if (!p) return "";
+  const parts = [];
+  if (p.throughTrain) parts.push(`<b>Through-train:</b> ${esc(p.throughTrain)}<br><span class="note">Pupils normally move straight up, without going through the secondary allocation.</span>`);
+  if (p.feeder) parts.push(`<b>Feeder school for:</b> ${esc(p.feeder)}<br><span class="note">That secondary can keep up to 85% of its Secondary One places for children from this primary.</span>`);
+  if (p.nominated) parts.push(`<b>Nominated school for:</b> ${esc(p.nominated)}<br><span class="note">Each of those secondaries can keep up to 25% of its Secondary One places for children from this primary.</span>`);
+  return parts.length ? parts.join("<br><br>") : "None";
+}
+
+// The "School Profile" section for primaries: everyday details a parent would ask on a visit.
+function profileSection(p) {
+  const yesNo = b => b ? "Yes" : "No";
+  const classes = p.classes.length
+    ? p.classes.map((n, i) => `P${i + 1}: ${esc(n || "0")}`).join(" · ") + (p.classesTotal ? ` <span class="note">(${esc(p.classesTotal)} in all)</span>` : "")
+    : "";
+  const plural = (n, word) => `${esc(n || "0")} ${word}${n === "1" ? "" : "s"}`;
+  const tests = (t, e) => (t || e) ? `${plural(t, "test")} and ${plural(e, "exam")} a year` : "";
+  const fees = [p.schoolFee ? "School fee " + esc(p.schoolFee) : "", p.tongFai ? "Tong fai " + esc(p.tongFai) : "", p.ptaFee ? "Parent-teacher association " + esc(p.ptaFee) : ""].filter(Boolean).join("<br>");
+  return ["✎", "School Profile", p.moi ? `<span class="badge">${esc(p.moi.replace(/\(incl\.: Putonghua\)/, "").replace(" and English", " & English"))}</span>` : "", kvTable([
+    ["Teaching language", esc(p.moi) + `<br><span class="note">"Chinese" means Cantonese, unless Putonghua (Mandarin) is mentioned.</span>`],
+    ["Linked secondary schools", linkedSecondaries({ psp: p })],
+    ["Tests and exams, Primary 1", tests(p.testsP1, p.examsP1)],
+    ["Tests and exams, Primary 2-6", tests(p.testsP2, p.examsP2)],
+    ["Grouping by ability", esc(p.streaming)],
+    ["Classes this year", classes],
+    ["School day", esc(p.hours)],
+    ["Lunch", esc(p.lunch)],
+    ["School bus", yesNo(p.bus) + (p.nannyVan ? " · nanny van also available" : "")],
+    ["Teachers", p.teachers ? `${esc(p.teachers)} teachers; ${esc(p.pctMasters)}% have a master's degree or higher, ${esc(p.pctExp10)}% have 10+ years' experience, ${esc(p.pctSen)}% trained in special educational needs` : ""],
+    ["Support for non-Chinese speakers", esc(p.ncs)],
+    ["Fees and charges", fees],
+    ["Sponsoring body", esc(p.sponsor)],
+    ["Founded", esc(p.founded)],
+  ]) + `<p class="note">From the Primary School Profiles 2026, published by the Committee on Home-School Co-operation for the Education Bureau. Full profile, including the school's own description: ${link("https://www.chsc.hk/primary/en/", "chsc.hk")}.</p>`];
+}
+
 // Each section: icon, title, badge HTML (shown next to the +), body HTML (shown when opened).
 function sections(s) {
   const out = [];
@@ -635,7 +676,7 @@ function sections(s) {
     ["Phone", esc(s.phone)],
     ["Website", link(s.website)],
     ["District", esc(s.district)],
-    ["Through-train partner", s.throughTrain ? esc(s.throughTrain.join(", ")) + `<br><span class="note">"Through-train" schools are linked primary and secondary schools: pupils normally move up without going through the secondary allocation.</span>` : ""],
+    ["Through-train partner", s.throughTrain && !s.psp ? esc(s.throughTrain.join(", ")) + `<br><span class="note">"Through-train" schools are linked primary and secondary schools: pupils normally move up without going through the secondary allocation.</span>` : ""],
     ["EDB school number", esc(s.schoolNo)],
   ])]);
 
@@ -646,6 +687,8 @@ function sections(s) {
       kvTable(s.fees.map(([cls, fee]) => [esc(cls), esc(fee) + " a year"])) +
       `<p class="note">Fees for the 2025/26 school year, from the Education Bureau. DSS schools must offer fee remission to some families on lower incomes.</p>`]);
   }
+
+  if (s.psp) out.push(profileSection(s.psp));
 
   if (s.kg) {
     const g = s.kg;

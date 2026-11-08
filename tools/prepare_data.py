@@ -13,6 +13,9 @@ Inputs (all in data-raw/, all downloaded from Hong Kong government open data):
   through_train.csv          primary + secondary schools run as one "through-train" (EDB)
   dssinfo.csv, dssfee.csv    Direct Subsidy Scheme schools and their fees (EDB)
   kg_profiles.csv            kindergarten profiles (EDB), UTF-16, "^" separated
+  chsc_primary_profiles.csv  Primary School Profiles 2026, English (Committee on Home-School
+                             Co-operation, data.gov.hk): teaching language, feeder and nominated
+                             secondary schools, tests and exams, school hours, teachers, classes
 """
 import csv, io, json, re, os, datetime
 from collections import defaultdict
@@ -206,6 +209,56 @@ for r in rows[1:]:
         "website": d.get("school_website", "").strip(),
     }
 
+# ---------- Primary School Profiles (CHSC) ----------
+# This file has no EDB school number, so we match on the school name, and if that
+# fails, on the phone number.
+def plain(v):
+    """Tidy a profile text field: drop '<br>' tags and the '-' used for 'nothing'."""
+    v = re.sub(r"\s*<br\s*/?>\s*", " ", (v or "")).strip()
+    v = re.sub(r"\s+", " ", v).strip('"').strip()
+    return "" if v in ("-", "N.A.", "Not Applicable.", "Not applicable") else v
+
+
+def short(v, limit=320):
+    """Cut long paragraphs so the panel stays readable; the full text is on chsc.hk."""
+    v = plain(v)
+    return v if len(v) <= limit else v[:limit].rsplit(" ", 1)[0] + "…"
+
+
+psp_by_name, psp_by_phone = {}, {}
+with open(raw("chsc_primary_profiles.csv"), encoding="utf-8-sig") as fh:
+    for d in csv.DictReader(fh):
+        if d["district"] not in ("Central & Western", "Wan Chai", "Eastern", "Southern"):
+            continue
+        cls = [plain(d.get(f"current_year_no_of_class_p{i}")) for i in range(1, 7)]
+        start = plain(d["school_starts_at"]) and f'{plain(d["school_starts_at"])} {plain(d["school_starts_at_AMPM"])}'.lower()
+        end = plain(d["school_ends_at"]) and f'{plain(d["school_ends_at"])} {plain(d["school_ends_at_AMPM"])}'.lower()
+        p = {
+            "moi": plain(d["medium_of_instruction"]),
+            "throughTrain": plain(d["through_train_sec_school"]),
+            "feeder": plain(d["feeder_sec_school"]),
+            "nominated": plain(d["nominated_sec_school"]),
+            "sponsor": plain(d["sponsoring_body"]),
+            "founded": plain(d["commencement_of_operation_year"]),
+            "classes": cls if any(cls) else [],
+            "classesTotal": plain(d["current_year_no_of_class_total"]),
+            "testsP1": plain(d["no_of_test_per_year_P1"]), "examsP1": plain(d["no_of_exam_per_year_P1"]),
+            "testsP2": plain(d["no_of_test_per_year_P2-P6"]), "examsP2": plain(d["no_of_exam_P2-P6"]),
+            "hours": f"{start} to {end}" if start and end else "",
+            "lunch": plain(d["lunch_arrangement"]),
+            "bus": plain(d["school_bus"]) == "Yes", "nannyVan": plain(d["nanny_van"]) == "Yes",
+            "teachers": plain(d["previous_year_tsi_total_no_of_teachers"]),
+            "pctMasters": plain(d["previous_year_tsi_percent_of_master_doctorate_or_above"]),
+            "pctExp10": plain(d["previous_year_tsi_percent_of_exp_10_or_above"]),
+            "pctSen": plain(d["previous_year_tsi_percent_of_special_edu_training"]),
+            "streaming": short(d["streaming_arrangement"], 200),
+            "ncs": short(d["support_for_non_chinese_students"]),
+            "schoolFee": plain(d["asc_school_fee"]), "tongFai": plain(d["asc_tong_fai"]),
+            "ptaFee": plain(d["asc_pta_fee"]),
+        }
+        psp_by_name[norm(d["school_name"])] = p
+        psp_by_phone[re.sub(r"\D", "", d["school_tel"])] = p
+
 # ---------- Schools ----------
 FINANCE = {"GOVERNMENT": "Government", "AIDED": "Aided", "DIRECT SUBSIDY SCHEME": "DSS",
            "ENGLISH SCHOOLS FOUNDATION": "ESF", "PRIVATE INDEPENDENT SCH SCHEME": "Private (PIS)", "PRIVATE": "Private"}
@@ -268,6 +321,10 @@ for x in data:
         s["throughTrain"] = partners
     if finance == "DSS" and norm(s["name"]) in dss_fees:
         s["fees"] = dss_fees[norm(s["name"])]
+    if level == "Primary" and not special:
+        prof = psp_by_name.get(norm(s["name"])) or psp_by_phone.get(re.sub(r"\D", "", s["phone"]))
+        if prof:
+            s["psp"] = prof
     if level == "Kindergarten" and num6 in kg:
         s["kg"] = kg[num6]
         if not s["website"] and kg[num6]["website"]:
@@ -280,7 +337,8 @@ if missing_p1:
     print("Government/aided primaries with no P1 places figure:", missing_p1)
 print(f"{len(out)} schools; by type:", dict(sorted(defaultdict(int, {k: sum(1 for s in out if s['kind'] == k) for k in set(s['kind'] for s in out)}).items())))
 print("Through-train matches:", sum(1 for s in out if "throughTrain" in s), "| DSS fee matches:", sum(1 for s in out if "fees" in s),
-      "| KG profiles:", sum(1 for s in out if "kg" in s), "| SSPA:", sum(1 for s in out if "sspaNet" in s))
+      "| KG profiles:", sum(1 for s in out if "kg" in s), "| SSPA:", sum(1 for s in out if "sspaNet" in s),
+      "| Primary profiles:", sum(1 for s in out if "psp" in s), "of", len(psp_by_name))
 
 info = {"built": datetime.date.today().strftime("%-d %b %Y"), "p1Booklet": booklet_date,
         "districts": list(DISTRICTS.values()), "sspaNets": SSPA_NETS}
