@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School Finder HK Island</title>
+<!-- Leaflet = the map library. Loaded from a CDN, no install needed. -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --gov: #2fb34a;
+    --aided: #f2c500;
+    --dss: #f08a24;
+    --esf: #8e44ad;
+    --intl: #2f7de1;
+    --private: #6c8aa8;
+    --kg: #e86aa6;
+    --special: #8b5a2b;
+    --ink: #1f2933;
+    --muted: #6b7680;
+    --line: #e3e7eb;
+    --panel: #ffffff;
+    --soft: #f3f6fa;
+    --accent: #4b4fd6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang HK", "Microsoft JhengHei", sans-serif; color: var(--ink); background: #fff; }
+  #map { position: absolute; inset: 0; }
+
+  /* ---------- Top-right buttons ---------- */
+  .top-buttons { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; gap: 6px; }
+  .btn { border: 0; border-radius: 6px; padding: 8px 12px; font-size: 14px; font-weight: 600; cursor: pointer; background: #555; color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .btn.purple { background: #b06ab3; }
+  .btn.teal { background: #1f8a8a; }
+  .btn[hidden] { display: none; }
+
+  /* ---------- Right-hand menu ---------- */
+  #menu { position: absolute; top: 0; right: 0; bottom: 0; width: 340px; max-width: 100%; z-index: 1100; background: #e4e4e4; overflow-y: auto; padding: 14px; box-shadow: -2px 0 8px rgba(0,0,0,.2); transform: translateX(100%); transition: transform .2s; }
+  #menu.open { transform: none; }
+  #menu .close { float: right; background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--muted); }
+  .search-row { display: flex; gap: 8px; margin-top: 30px; }
+  .search-row input { flex: 1; }
+  input[type=text], select { width: 100%; padding: 10px 12px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+  .icon-btn { border: 0; border-radius: 6px; background: #5b4b8a; color: #fff; width: 44px; cursor: pointer; font-size: 18px; }
+  .check { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 14px; font-weight: 600; color: #444; }
+  .msg { font-size: 13px; color: #b03030; min-height: 1em; }
+  .msg.ok { color: #2a6a2a; }
+  details.section { border-top: 1px solid #cfcfcf; padding: 10px 0; }
+  details.section > summary { cursor: pointer; font-size: 17px; list-style: none; }
+  details.section > summary::before { content: "▸ "; }
+  details.section[open] > summary::before { content: "▾ "; }
+  .field { margin: 10px 0; }
+  .field label { display: block; font-size: 13px; color: #444; margin-bottom: 4px; font-weight: 600; }
+  .field select { padding: 7px 8px; font-size: 14px; }
+  .count { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .home-card { background: #fff; border-radius: 8px; padding: 10px 12px; margin: 10px 0; font-size: 13px; line-height: 1.45; }
+  .home-card h3 { margin: 0 0 6px; font-size: 15px; }
+  .home-card a { display: block; margin: 3px 0; }
+
+  /* ---------- Left-hand school panel ---------- */
+  #panel { position: absolute; top: 0; left: 0; bottom: 0; width: 380px; max-width: 100%; z-index: 1050; background: var(--panel); overflow-y: auto; box-shadow: 2px 0 8px rgba(0,0,0,.2); transform: translateX(-100%); transition: transform .2s; }
+  #panel.open { transform: none; }
+  .panel-head { position: sticky; top: 0; background: #fff; padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; z-index: 1; }
+  .panel-head h2 { margin: 0; font-size: 18px; flex: 1; }
+  .panel-head h2 small { display: block; font-weight: 400; font-size: 14px; color: var(--muted); margin-top: 2px; }
+  .heart { background: none; border: 0; font-size: 20px; cursor: pointer; color: #bbb; }
+  .heart.on { color: #e0405a; }
+  .row { border-bottom: 1px solid var(--line); }
+  .row-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; cursor: pointer; user-select: none; }
+  .row-head .ico { width: 22px; text-align: center; color: var(--accent); }
+  .row-head .title { flex: 1; font-size: 15px; }
+  .row-head .plus { font-weight: 700; width: 14px; text-align: center; }
+  .badge { font-size: 12px; padding: 5px 9px; border-radius: 6px; background: var(--soft); white-space: nowrap; }
+  .badge.green { background: #c8f5a8; }
+  .badge.blue { background: #d6e6fb; }
+  .badge.amber { background: #ffe3b0; }
+  .row-body { display: none; padding: 4px 16px 16px; font-size: 13px; line-height: 1.45; }
+  .row.open .row-body { display: block; }
+  table.kv { width: 100%; border-collapse: collapse; }
+  table.kv td { padding: 5px 0; vertical-align: top; }
+  table.kv td:first-child { font-weight: 600; width: 42%; padding-right: 8px; }
+  .note { color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .callout { background: #fff8e1; border-left: 4px solid #f2c500; padding: 8px 10px; margin: 8px 0; border-radius: 4px; }
+  .callout.good { background: #eaf7e6; border-color: var(--gov); }
+  .callout.bad { background: #fdecec; border-color: #d64545; }
+  a { color: var(--accent); }
+
+  /* ---------- Map markers ---------- */
+  .pin { width: 24px; height: 28px; border-radius: 5px; border: 1px solid rgba(0,0,0,.35); box-shadow: 2px 3px 4px rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; font: 700 13px/1 -apple-system, sans-serif; color: #111; }
+  .pin.light-text { color: #fff; }
+  .pin.selected { outline: 3px solid #fff; box-shadow: 0 0 0 5px var(--accent); }
+  .school-label { background: transparent; border: 0; box-shadow: none; font-weight: 700; font-size: 13px; color: #3b3f6b; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; }
+  .school-label::before { display: none; }
+  .net-label { background: rgba(255,255,255,.85); border: 1px solid #888; border-radius: 4px; font-weight: 700; font-size: 12px; padding: 2px 6px; box-shadow: none; }
+  .net-label::before { display: none; }
+
+  /* ---------- Key (legend) ---------- */
+  #keyBtn { position: absolute; left: 10px; bottom: 24px; z-index: 1000; background: #2f6fd0; }
+  #key { position: absolute; left: 10px; bottom: 64px; z-index: 1000; background: #fff; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 6px rgba(0,0,0,.3); font-size: 13px; display: none; max-width: 300px; }
+  #key.open { display: block; }
+  #key div { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  #key .sq { width: 14px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,.3); flex: none; }
+
+  #toast { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 1200; background: rgba(30,30,30,.85); color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 13px; display: none; }
+
+  @media (max-width: 700px) {
+    #panel, #menu { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div class="top-buttons">
+  <button class="btn purple" id="deselectBtn" hidden>Deselect</button>
+  <button class="btn teal" id="guideBtn">HK vs England</button>
+  <button class="btn" id="menuBtn">Menu</button>
+</div>
+
+<button class="btn" id="keyBtn">Key</button>
+<div id="key">
+  <div><span class="sq" style="background:var(--gov)"></span>Government (free, in the state allocation system)</div>
+  <div><span class="sq" style="background:var(--aided)"></span>Aided (free, run by a charity or church)</div>
+  <div><span class="sq" style="background:var(--dss)"></span>Direct Subsidy Scheme (fee-paying, apply direct)</div>
+  <div><span class="sq" style="background:var(--esf)"></span>English Schools Foundation</div>
+  <div><span class="sq" style="background:var(--intl)"></span>International school</div>
+  <div><span class="sq" style="background:var(--private)"></span>Private local school</div>
+  <div><span class="sq" style="background:var(--kg)"></span>Kindergarten</div>
+  <div><span class="sq" style="background:var(--special)"></span>Special school</div>
+  <div class="note" style="display:block">Letter on the pin: K = kindergarten, P = primary, S = secondary.<br>Coloured outlines = Primary One school nets.</div>
+</div>
+<div id="toast"></div>
+
+<!-- Left: details of the clicked school -->
+<div id="panel"></div>
+
+<!-- Right: search and filters -->
+<div id="menu">
+  <button class="close" id="menuClose" title="Close">×</button>
+  <div class="search-row">
+    <input type="text" id="locInput" placeholder="Address, building or estate">
+    <button class="icon-btn" id="locGo" title="Search">🔍</button>
+    <button class="icon-btn" id="myLoc" title="Use my current location">➤</button>
+  </div>
+  <label class="check"><input type="checkbox" id="homeCheck" checked> Place home marker at location</label>
+  <div class="msg" id="locMsg"></div>
+  <div id="homeCard"></div>
+  <input type="text" id="schoolSearch" list="schoolNames" placeholder="or school name (English or 中文)">
+  <datalist id="schoolNames"></datalist>
+  <div class="count" id="count"></div>
+
+  <details class="section">
+    <summary>Map Options</summary>
+    <div class="field"><label>Map style</label>
+      <select id="tileStyle"><option value="osm">OpenStreetMap</option><option value="street">Streets (Esri)</option><option value="light">Light grey</option></select>
+    </div>
+    <label class="check"><input type="checkbox" id="showLabels"> Show school names on the map</label>
+    <label class="check"><input type="checkbox" id="chineseNames"> Use Chinese school names</label>
+  </details>
+
+  <details class="section" open>
+    <summary>School Filters</summary>
+    <div class="field"><label>Stage</label>
+      <select id="fLevel">
+        <option value="all">All schools</option>
+        <option value="Kindergarten">Kindergarten (age 3-6, K1-K3)</option>
+        <option value="Primary" selected>Primary (age 6-12, P1-P6)</option>
+        <option value="Secondary">Secondary (age 12-18, S1-S6)</option>
+      </select></div>
+    <div class="field"><label>Funding / type</label>
+      <select id="fKind">
+        <option value="all">All types</option>
+        <option value="public">Free state schools only (government + aided)</option>
+        <option value="gov">Government</option>
+        <option value="aided">Aided</option>
+        <option value="dss">Direct Subsidy Scheme (DSS)</option>
+        <option value="esf">English Schools Foundation (ESF)</option>
+        <option value="intl">International</option>
+        <option value="private">Private local</option>
+        <option value="kg">Kindergarten</option>
+      </select></div>
+    <div class="field"><label>Gender</label>
+      <select id="fGender"><option value="all">All</option><option value="Boys">Boys only</option><option value="Girls">Girls only</option><option value="Co-ed">Co-ed</option></select></div>
+    <div class="field"><label>Religious background</label>
+      <select id="fReligion"><option value="all">All</option><option value="none">None</option><option value="any">Any faith</option></select></div>
+    <div class="field"><label>Kindergarten session</label>
+      <select id="fSession"><option value="all">Any</option><option value="Whole Day">Whole day</option><option value="Morning">Morning (half day)</option><option value="Afternoon">Afternoon (half day)</option></select></div>
+    <div class="field"><label>Kindergartens in the government scheme</label>
+      <select id="fScheme"><option>Include</option><option>Only</option><option>Exclude</option></select></div>
+    <div class="field"><label>Special schools</label>
+      <select id="fSpecial"><option>Exclude</option><option>Include</option><option>Only</option></select></div>
+  </details>
+
+  <details class="section" open>
+    <summary>School Nets</summary>
+    <label class="check"><input type="checkbox" id="showNets" checked> Show Primary One school nets</label>
+    <p class="note">Hong Kong has no distance-based catchments. Instead, the city is split into <b>school nets</b>. Your address decides your net, and your net decides which government and aided primaries you can list at the "Central Allocation" stage. Within a net, living next door to a school gives <b>no advantage</b>: ties are broken by a computer-generated random number. Click "HK vs England" for the full explanation.</p>
+  </details>
+
+  <details class="section">
+    <summary>Districts</summary>
+    <div id="districtBoxes"></div>
+  </details>
+
+  <details class="section">
+    <summary>My Shortlist</summary>
+    <div id="shortlist" class="note">Click the ♡ on a school to add it here.</div>
+  </details>
+
+  <details class="section">
+    <summary>About the data</summary>
+    <p class="note" id="aboutData"></p>
+  </details>
+</div>
+
+<script src="schools.js"></script>
+<script>
+/* =====================================================================
+   School Finder - Hong Kong Island
+   - SCHOOLS (from schools.js): one object per school
+   - POA_NETS (from schools.js): Primary One school net boundaries (GeoJSON)
+   ===================================================================== */
+
+// ---------- What each type of school means, in plain English ----------
+const KINDS = {
+  gov:     { label: "Government school", colour: "var(--gov)",
+             note: "Run by the Education Bureau. Free. Primaries are allocated through the Primary One Admission system (school nets); secondaries through the Secondary School Places Allocation system." },
+  aided:   { label: "Aided school", colour: "var(--aided)",
+             note: "Run by a charity, church, temple or clan association but fully paid for by the government, so free. Most Hong Kong state schools are this type, like a voluntary-aided school in England. Allocated through the same government systems as government schools." },
+  dss:     { label: "Direct Subsidy Scheme (DSS)", colour: "var(--dss)",
+             note: "Gets some government money but charges fees and sets its own admissions, usually with interviews and sometimes tests. Apply direct to the school. Accepting a DSS Primary One place takes your child out of the government P1 allocation." },
+  esf:     { label: "English Schools Foundation (ESF)", colour: "var(--esf)",
+             note: "Hong Kong's largest group of English-medium international schools (IB curriculum). Fee-paying. You apply centrally to ESF, and ESF uses your home address to decide which of its schools you are offered: the closest thing in Hong Kong to an English catchment." },
+  intl:    { label: "International school", colour: "var(--intl)",
+             note: "Private, fee-paying, teaching a non-local curriculum (British, IB, American, etc.). Apply direct. No catchment. Many have long waiting lists, and some sell debentures or capital levies that buy priority." },
+  private: { label: "Private local school", colour: "var(--private)",
+             note: "Fee-paying, usually teaching the local curriculum. Apply direct, often with an interview. No catchment." },
+  kg:      { label: "Kindergarten", colour: "var(--kg)",
+             note: "All kindergartens in Hong Kong are privately run. Most join the government's Kindergarten Education Scheme, which makes half-day places free or nearly free. There is no allocation system: you apply direct to each one, usually about a year ahead." },
+  special: { label: "Special school", colour: "var(--special)",
+             note: "For children with special educational needs. Places are arranged through a referral by the Education Bureau or a specialist, not by applying direct." },
+};
+
+// Colour for each Primary One school net on Hong Kong Island.
+const NET_COLOURS = { "11": "#d64545", "12": "#2f7de1", "14": "#1f8a8a", "16": "#8e44ad", "18": "#e07b00" };
+// Secondary school nets on HK Island. Each is a whole district, which lines up with these P1 nets.
+const SSPA_TO_POA = { HK1: ["11"], HK2: ["12"], HK3: ["14", "16"], HK4: ["18"] };
+const POA_TO_SSPA = { "11": "HK1", "12": "HK2", "14": "HK3", "16": "HK3", "18": "HK4" };
+const SSPA_NAMES = { HK1: "Central and Western", HK2: "Wan Chai", HK3: "Eastern", HK4: "Southern",
+  KL1: "Yau Tsim Mong", KL2: "Sham Shui Po", KL3: "Kowloon City", KL4: "Wong Tai Sin", KL5: "Kwun Tong",
+  NT1: "Kwai Tsing", NT2: "Tsuen Wan", NT3: "Tuen Mun", NT4: "Yuen Long", NT5: "North", NT6: "Tai Po",
+  NT7: "Sha Tin", NT8: "Sai Kung", NT9: "Islands" };
+
+const levelLetter = s => ({ Kindergarten: "K", Primary: "P", Secondary: "S" }[s.level] || "•");
+
+// ---------- The map ----------
+const map = L.map("map", { zoomControl: true }).setView([22.262, 114.19], 13);
+
+// Free map backgrounds that need no API key.
+const TILES = {
+  osm: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png", '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'],
+  light: ["https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}", 'Tiles &copy; Esri'],
+  street: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", 'Tiles &copy; Esri'],
+};
+let tileLayer = null;
+function setTiles(name) {
+  if (tileLayer) map.removeLayer(tileLayer);
+  tileLayer = L.tileLayer(TILES[name][0], { attribution: TILES[name][1] + ' | School nets &copy; Education Bureau, HKSAR', maxZoom: 19 }).addTo(map);
+}
+setTiles("osm");
+
+// Layers, drawn bottom to top: all nets, the highlighted net(s), then school pins.
+const netLayer = L.layerGroup().addTo(map);
+const highlightLayer = L.layerGroup().addTo(map);
+const markerLayer = L.layerGroup().addTo(map);
+
+let selected = null;      // the school currently shown in the panel
+let homeMarker = null;    // the "home" pin, if placed
+let homeNet = "";         // P1 school net the home marker is in ("" if outside HK Island)
+let visibleSchools = [];  // schools passing the filters
+
+// ---------- School nets ----------
+function netFeature(net) { return POA_NETS.features.find(f => f.properties.net === net); }
+
+function drawNets() {
+  netLayer.clearLayers();
+  if (!document.getElementById("showNets").checked) return;
+  for (const f of POA_NETS.features) {
+    const net = f.properties.net;
+    const layer = L.geoJSON(f, { style: { color: NET_COLOURS[net], weight: 2, opacity: 0.8, fillOpacity: 0.04, fillColor: NET_COLOURS[net] }, interactive: false });
+    layer.addTo(netLayer);
+    // Put the net number in the middle of the biggest piece of the net.
+    L.tooltip({ permanent: true, direction: "center", className: "net-label" })
+      .setLatLng(layer.getBounds().getCenter()).setContent("Net " + net).addTo(netLayer);
+  }
+}
+
+// Shade one or more nets more strongly (used for the selected school).
+function highlightNets(nets, dashed) {
+  for (const net of nets) {
+    const f = netFeature(net);
+    if (!f) continue;
+    L.geoJSON(f, { style: { color: NET_COLOURS[net], weight: 3, dashArray: dashed ? "6 6" : null, fillOpacity: 0.18, fillColor: NET_COLOURS[net] }, interactive: false }).addTo(highlightLayer);
+  }
+}
+
+function redrawHighlight() {
+  highlightLayer.clearLayers();
+  if (!selected) return;
+  if (selected.inPOA && selected.poaNet) highlightNets([selected.poaNet], false);
+  else if (selected.sspaServes) highlightNets(selected.sspaServes.flatMap(n => SSPA_TO_POA[n] || []), true);
+}
+
+// Is a point inside a polygon ring? (The standard "ray casting" test.)
+function inRing(lon, lat, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+function netAt(lat, lon) {
+  for (const f of POA_NETS.features) {
+    const g = f.geometry;
+    const polys = g.type === "MultiPolygon" ? g.coordinates : [g.coordinates];
+    for (const poly of polys) {
+      if (inRing(lon, lat, poly[0]) && !poly.slice(1).some(h => inRing(lon, lat, h))) return f.properties.net;
+    }
+  }
+  return "";
+}
+
+// ---------- Markers ----------
+const markers = {}; // school id -> Leaflet marker
+const displayName = s => document.getElementById("chineseNames").checked ? s.nameZh : s.name;
+
+for (const s of SCHOOLS) {
+  const k = KINDS[s.kind];
+  const lightText = ["esf", "intl", "special", "private"].includes(s.kind) ? "light-text" : "";
+  const icon = L.divIcon({
+    className: "",
+    html: `<div class="pin ${lightText}" style="background:${k.colour}">${levelLetter(s)}</div>`,
+    iconSize: [24, 28],
+    iconAnchor: [12, 14],
+  });
+  const m = L.marker([s.lat, s.lon], { icon, title: s.name });
+  m.on("click", () => selectSchool(s));
+  markers[s.id] = m;
+}
+
+function setLabels() {
+  const on = document.getElementById("showLabels").checked;
+  for (const s of SCHOOLS) {
+    const m = markers[s.id];
+    m.unbindTooltip();
+    m.bindTooltip(displayName(s), { permanent: on, direction: "right", className: "school-label", offset: [12, 0] });
+  }
+  if (selected) markers[selected.id].openTooltip();
+}
+
+// ---------- Filters ----------
+function includeExcludeOnly(setting, isIt) {
+  if (setting === "Exclude") return !isIt;
+  if (setting === "Only") return isIt;
+  return true;
+}
+
+function passesFilters(s) {
+  const v = id => document.getElementById(id).value;
+
+  const level = v("fLevel");
+  if (level !== "all" && s.level !== level) return false;
+
+  const kind = v("fKind");
+  if (kind === "public" && !(s.kind === "gov" || s.kind === "aided")) return false;
+  if (kind !== "all" && kind !== "public" && s.kind !== kind) return false;
+
+  const gender = v("fGender");
+  if (gender !== "all" && s.gender !== gender) return false;
+
+  const rel = v("fReligion");
+  if (rel === "none" && s.religion) return false;
+  if (rel === "any" && !s.religion) return false;
+  if (rel !== "all" && rel !== "none" && rel !== "any" && s.religion !== rel) return false;
+
+  // Session and scheme filters only apply to kindergartens; other schools pass straight through.
+  if (s.level === "Kindergarten") {
+    const session = v("fSession");
+    if (session !== "all" && !s.sessions.includes(session)) return false;
+    if (!includeExcludeOnly(v("fScheme"), !!(s.kg && s.kg.scheme))) return false;
+  }
+
+  if (!includeExcludeOnly(v("fSpecial"), s.special)) return false;
+
+  const districts = [...document.querySelectorAll("#districtBoxes input:checked")].map(b => b.value);
+  if (!districts.includes(s.district)) return false;
+
+  return true;
+}
+
+function applyFilters() {
+  markerLayer.clearLayers();
+  visibleSchools = SCHOOLS.filter(passesFilters);
+  for (const s of visibleSchools) markers[s.id].addTo(markerLayer);
+  // Keep the selected school on the map even if a filter hides it.
+  if (selected && !visibleSchools.includes(selected)) markers[selected.id].addTo(markerLayer);
+  document.getElementById("count").textContent = `Showing ${visibleSchools.length} of ${SCHOOLS.length} schools`;
+}
+
+// ---------- Fill the filter drop-downs from the data ----------
+(function setupFilterOptions() {
+  const religions = [...new Set(SCHOOLS.map(s => s.religion).filter(Boolean))].sort();
+  const relSel = document.getElementById("fReligion");
+  religions.forEach(r => relSel.add(new Option(r, r)));
+
+  const boxes = document.getElementById("districtBoxes");
+  DATA_INFO.districts.forEach(d => {
+    const n = SCHOOLS.filter(s => s.district === d).length;
+    boxes.insertAdjacentHTML("beforeend", `<label class="check"><input type="checkbox" value="${d}" checked> ${d} (${n} schools)</label>`);
+  });
+
+  const list = document.getElementById("schoolNames");
+  SCHOOLS.forEach(s => list.appendChild(new Option(`${s.name} ${s.nameZh !== s.name ? s.nameZh : ""}`.trim())));
+
+  document.getElementById("aboutData").innerHTML =
+    `All data is Hong Kong government open data (Education Bureau, via data.gov.hk and the CSDI portal), prepared ${esc(DATA_INFO.built)}:<br>` +
+    `• School locations and basic details: EDB "School Location and Information".<br>` +
+    `• Primary One school net boundaries: EDB "POA School Net Boundaries".<br>` +
+    `• P1 discretionary places: EDB "Primary School Lists by School Net" booklet for Primary One Admission 2027 (${esc(DATA_INFO.p1Booklet)}).<br>` +
+    `• Secondary nets served: EDB "SSPA System School Net Information".<br>` +
+    `• DSS fees, through-train schools and kindergarten profiles: EDB.<br>` +
+    `• Address search: the government Address Lookup Service (als.gov.hk).<br><br>` +
+    `Hong Kong publishes <b>no</b> official league tables, exam results by school or inspection grades like Ofsted's, so pins are coloured by type of school, not quality. Secondary "banding" figures you see on property and tutoring websites are unofficial.`;
+})();
+
+document.querySelectorAll("#menu select, #districtBoxes input").forEach(el => el.addEventListener("change", applyFilters));
+document.getElementById("tileStyle").addEventListener("change", e => setTiles(e.target.value));
+document.getElementById("showLabels").addEventListener("change", setLabels);
+document.getElementById("chineseNames").addEventListener("change", () => { setLabels(); if (selected) renderPanel(selected); });
+document.getElementById("showNets").addEventListener("change", drawNets);
+
+// ---------- Selecting a school ----------
+function selectSchool(s) {
+  if (selected) markers[selected.id].getElement()?.querySelector(".pin")?.classList.remove("selected");
+  selected = s;
+  markers[s.id].getElement()?.querySelector(".pin")?.classList.add("selected");
+  document.getElementById("deselectBtn").hidden = false;
+  renderPanel(s);
+  document.getElementById("panel").classList.add("open");
+  redrawHighlight();
+}
+
+function deselect() {
+  if (selected) markers[selected.id].getElement()?.querySelector(".pin")?.classList.remove("selected");
+  selected = null;
+  document.getElementById("panel").classList.remove("open");
+  document.getElementById("deselectBtn").hidden = true;
+  redrawHighlight();
+  applyFilters();
+}
+document.getElementById("deselectBtn").addEventListener("click", deselect);
+
+// ---------- Panel contents ----------
+function esc(t) { return String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+const link = (url, text) => url ? `<a href="${esc(/^http/.test(url) ? url : "http://" + url)}" target="_blank" rel="noopener">${esc(text || url)}</a>` : "";
+
+function kvTable(rows) {
+  return `<table class="kv">${rows.filter(r => r[1] !== "" && r[1] != null).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("")}</table>`;
+}
+
+function netName(net) {
+  const f = netFeature(net);
+  return f ? `Net ${net} (${esc(f.properties.areas)})` : `Net ${net}`;
+}
+
+function homeDistance(s) {
+  if (!homeMarker) return "";
+  const km = map.distance(homeMarker.getLatLng(), [s.lat, s.lon]) / 1000;
+  return `${km.toFixed(1)} km from your home marker (straight line)`;
+}
+
+// The "Admissions" section: this replaces the catchment section of the England version.
+function admissionsSection(s) {
+  let badge, body = "";
+
+  if (s.inPOA) {
+    badge = `<span class="badge blue">P1 net ${esc(s.poaNet)}</span>`;
+    body += kvTable([
+      ["Primary One school net", netName(s.poaNet)],
+      ["Discretionary places (2027 entry)", s.dpQuota != null ? `${s.dpQuota}` : ""],
+      ["Rough total P1 places", s.dpQuota != null ? `about ${s.dpQuota * 2} <span class="note">(discretionary places are about half)</span>` : ""],
+      ["Class size", s.smallClass ? "Small-class teaching: about 25 children allocated per class" : ""],
+      ["Wheelchair access", s.disabledAccess ? "Some facilities for children with a physical disability" : ""],
+    ]);
+    if (s.notInBooklet) body += `<p class="callout">This school is <b>not</b> in the Education Bureau's 2027 Primary One booklet, so it may not be taking Primary One children through the government system next year. Check with the school.</p>`;
+    if (homeMarker) {
+      if (homeNet === s.poaNet) body += `<p class="callout good">Your home marker is in <b>net ${esc(homeNet)}</b>, the same net as this school, so you can list it at the main Central Allocation stage.</p>`;
+      else if (homeNet) body += `<p class="callout bad">Your home marker is in <b>net ${esc(homeNet)}</b>, not net ${esc(s.poaNet)}. You can still apply here at the Discretionary Places stage, or use one of your 3 "any net" choices at Central Allocation, but those are only about 5% of the school's places.</p>`;
+      else body += `<p class="callout">Your home marker is outside the Hong Kong Island school nets.</p>`;
+    }
+    body += `<p><b>How a place is decided</b></p>
+      <ol style="padding-left:18px;margin:4px 0">
+        <li><b>Discretionary Places</b> (about half the places; apply in September, the year before entry): you may apply to <b>one</b> government or aided school anywhere in Hong Kong. Siblings at the school and children of staff get in automatically (about 30%). At least 20% go by a points system: parent or sibling a former pupil (10), first-born child (5), same religion as the school's sponsor (5), and so on. <b>Your address scores no points.</b> Ties are decided by drawing lots.</li>
+        <li><b>Central Allocation</b> (the other half; choose in January, results in June): 10% of places go to up to 3 schools you pick from <b>any</b> net; 90% go to your ranked choices <b>inside your own net</b>. Where a school is oversubscribed, a random number decides. Distance from home does not count.</li>
+      </ol>
+      <p class="note">${homeDistance(s)}</p>
+      <p class="note">${link("https://www.edb.gov.hk/en/edu-system/primary-secondary/spa-systems/primary-1-admission/index.html", "Education Bureau: Primary One Admission")} · ${link("https://www.chsc.hk/primary/en/", "Primary School Profiles (CHSC)")}</p>`;
+  } else if (s.level === "Secondary" && s.sspaNet) {
+    const serves = s.sspaServes || [];
+    badge = `<span class="badge blue">Secondary net ${esc(s.sspaNet)}</span>`;
+    body += kvTable([
+      ["Secondary school net", `${esc(s.sspaNet)} (${esc(SSPA_NAMES[s.sspaNet] || "")})`],
+      ["Takes children from nets", serves.map(n => `${esc(n)} ${esc(SSPA_NAMES[n] || "")}`).join("<br>")],
+    ]);
+    if (homeMarker && homeNet) {
+      const mine = POA_TO_SSPA[homeNet];
+      body += serves.includes(mine)
+        ? `<p class="callout good">Your home marker is in secondary net <b>${esc(mine)}</b>, which this school serves.</p>`
+        : `<p class="callout bad">Your home marker is in secondary net <b>${esc(mine)}</b>, which this school does not serve at the main allocation stage.</p>`;
+    }
+    body += `<p><b>How a place is decided (Secondary School Places Allocation)</b></p>
+      <p>Up to 30% of places are filled at the <b>Discretionary Places</b> stage (in Primary 6), where you can apply to two schools anywhere and schools may interview. For the rest, children are put into one of three <b>allocation bands</b> using their school marks in Primary 5 and 6, scaled by how their primary school does in a government test. In <b>Central Allocation</b>, all Band 1 children are placed first, by their ranked choices, then Band 2, then Band 3. 10% of places are open to children from any net; 90% go to the nets this school serves. Within a band, a random number breaks ties: again, distance from home does not count.</p>
+      <p class="note">On the map, the dashed shading shows the Hong Kong Island nets this school takes children from (secondary nets are whole districts).</p>
+      <p class="note">${homeDistance(s)}</p>
+      <p class="note">${link("https://www.edb.gov.hk/en/edu-system/primary-secondary/spa-systems/secondary-spa/general-info/index.html", "Education Bureau: Secondary School Places Allocation")} · ${link("https://www.chsc.hk/secondary/en/", "Secondary School Profiles (CHSC)")}</p>`;
+  } else if (s.kind === "esf") {
+    badge = `<span class="badge amber">ESF catchment</span>`;
+    body += `<p>ESF schools are not in the government allocation systems. You apply once to ESF, and the school you are offered depends on your <b>Hong Kong home address</b>: each ESF school has its own catchment. ESF does not publish its catchment maps as open data, so check your address with ESF directly.</p>
+      <p>Applications for the following August usually open in September. ESF charges fees and an annual capital levy, and offers paid "nomination rights" that give priority.</p>
+      <p class="note">${link("https://www.esf.edu.hk/admissions/", "ESF admissions")}<br>${homeDistance(s)}</p>`;
+  } else if (s.kind === "kg") {
+    badge = `<span class="badge amber">Apply direct</span>`;
+    body += `<p>Kindergartens have <b>no catchment and no allocation</b>. You apply direct to as many as you like. Children start K1 in the September after they turn 2 years 8 months. Popular kindergartens take applications about a year ahead, often in September to November, and many hold short interviews or play sessions.</p>
+      <p>To secure a place you need a <b>K1 Registration Certificate</b> from the Education Bureau, which you hand to the one kindergarten you finally choose (scheme kindergartens only).</p>
+      <p class="note">${link("https://www.edb.gov.hk/en/edu-system/preprimary-kindergarten/kindergarten-k1-admission-arrangements/", "Education Bureau: K1 admission arrangements")}<br>${homeDistance(s)}</p>`;
+  } else if (s.kind === "special") {
+    badge = `<span class="badge">Referral</span>`;
+    body += `<p>Special school places are arranged through the Education Bureau after an assessment, usually on the advice of a doctor, educational psychologist or the child's current school. Talk to your child's school or the Education Bureau's Special Education section.</p>`;
+  } else {
+    badge = `<span class="badge amber">Apply direct</span>`;
+    body += `<p>This school is outside the government allocation systems. Apply direct to the school; there is no catchment. Expect application fees, assessments or interviews, and for international schools possibly a waiting list and debenture or levy options.</p>`;
+    if (s.kind === "dss" && s.level === "Primary") body += `<p class="callout">If you accept a Primary One place at a DSS school, your child drops out of the government Primary One allocation.</p>`;
+    body += `<p class="note">${homeDistance(s)}</p>`;
+  }
+  return ["◎", "Admissions & School Net", badge, body];
+}
+
+// Each section: icon, title, badge HTML (shown next to the +), body HTML (shown when opened).
+function sections(s) {
+  const out = [];
+  const k = KINDS[s.kind];
+
+  out.push(["☰", "Details", `<span class="badge">${esc(s.level)}</span>`, kvTable([
+    ["Type", `<b>${esc(k.label)}</b><br><span class="note">${esc(k.note)}</span>`],
+    ["Category (EDB)", esc(s.category)],
+    ["Gender", esc(s.gender)],
+    ["Session", esc(s.sessions.join(", "))],
+    ["Religious background", esc(s.religion || "None")],
+    ["Address", esc(s.address) + "<br>" + esc(s.addressZh)],
+    ["Phone", esc(s.phone)],
+    ["Website", link(s.website)],
+    ["District", esc(s.district)],
+    ["Through-train partner", s.throughTrain ? esc(s.throughTrain.join(", ")) + `<br><span class="note">"Through-train" schools are linked primary and secondary schools: pupils normally move up without going through the secondary allocation.</span>` : ""],
+    ["EDB school number", esc(s.schoolNo)],
+  ])]);
+
+  out.push(admissionsSection(s));
+
+  if (s.fees && s.fees.length) {
+    out.push(["$", "Fees", `<span class="badge">${esc(s.fees[0][1])}</span>`,
+      kvTable(s.fees.map(([cls, fee]) => [esc(cls), esc(fee) + " a year"])) +
+      `<p class="note">Fees for the 2025/26 school year, from the Education Bureau. DSS schools must offer fee remission to some families on lower incomes.</p>`]);
+  }
+
+  if (s.kg) {
+    const g = s.kg;
+    const ratio = [g.ratioAm && g.ratioAm !== "-" ? "morning " + g.ratioAm.replace(/^0/, "") : "", g.ratioPm && g.ratioPm !== "-" ? "afternoon " + g.ratioPm.replace(/^0/, "") : ""].filter(Boolean).join(", ");
+    out.push(["✿", "Kindergarten Profile", g.scheme ? `<span class="badge green">Gov. scheme</span>` : `<span class="badge">Not in scheme</span>`, kvTable([
+      ["Kindergarten Education Scheme", g.scheme ? "Yes: half-day places are free or nearly free" : "No: fees set by the kindergarten"],
+      ["Curriculum", esc(g.curriculum) + (g.curriculum === "Non-local" ? ` <span class="note">(for example IB, Montessori or British)</span>` : "")],
+      ["Run as", esc(g.category)],
+      ["Pupils", g.pupils || ""],
+      ["Teacher : pupil ratio", ratio ? esc(ratio) : ""],
+      ["Teachers with a degree", g.totalStaff ? `${g.degreeStaff} of ${g.totalStaff}` : ""],
+      ["Application period", g.applyFrom ? `${esc(g.applyFrom)} to ${esc(g.applyTo)}` : esc(g.applyHow)],
+      ["Quality review", esc(g.review) + (g.reviewLink ? " · " + link(g.reviewLink, "report") : "")],
+      ["Support for non-Chinese speakers", g.ncsSupport ? "Receives government grant" : ""],
+      ["Founded", esc(g.founded)],
+      ["Fees", g.feesLink ? link(g.feesLink, "Approved fees certificate (PDF)") : ""],
+    ]) + `<p class="note">From the Education Bureau's Profile of Kindergartens, 2025/26.</p>`]);
+  }
+  return out;
+}
+
+const openRows = new Set(["Admissions & School Net"]); // remember which sections were open, across schools
+
+function renderPanel(s) {
+  const fav = shortlist.has(s.id);
+  const rows = sections(s).map(([ico, title, badge, body]) => `
+    <div class="row ${openRows.has(title) ? "open" : ""}" data-title="${esc(title)}">
+      <div class="row-head"><span class="ico">${ico}</span><span class="title">${title}</span>${badge}<span class="plus">${openRows.has(title) ? "−" : "+"}</span></div>
+      <div class="row-body">${body}</div>
+    </div>`).join("");
+  const other = document.getElementById("chineseNames").checked ? s.name : s.nameZh;
+  const panel = document.getElementById("panel");
+  panel.innerHTML = `
+    <div class="panel-head">
+      <h2>${esc(displayName(s))}${other !== displayName(s) ? `<small>${esc(other)}</small>` : ""}</h2>
+      <button class="heart ${fav ? "on" : ""}" id="favBtn" title="Add to shortlist">${fav ? "♥" : "♡"}</button>
+      <button class="heart" id="zoomBtn" title="Zoom to school">➤</button>
+      <button class="heart" id="panelClose" title="Close">×</button>
+    </div>${rows}`;
+  panel.querySelectorAll(".row-head").forEach(h => h.addEventListener("click", () => {
+    const row = h.parentElement, title = row.dataset.title;
+    row.classList.toggle("open");
+    const isOpen = row.classList.contains("open");
+    h.querySelector(".plus").textContent = isOpen ? "−" : "+";
+    isOpen ? openRows.add(title) : openRows.delete(title);
+  }));
+  document.getElementById("favBtn").onclick = () => { toggleShortlist(s); renderPanel(s); };
+  document.getElementById("zoomBtn").onclick = () => map.setView([s.lat, s.lon], 16);
+  document.getElementById("panelClose").onclick = deselect;
+}
+
+// ---------- Shortlist (kept in this browser) ----------
+const shortlist = new Set();
+try { JSON.parse(localStorage.getItem("hkSchoolShortlist") || "[]").forEach(u => shortlist.add(u)); } catch (e) {}
+function toggleShortlist(s) {
+  shortlist.has(s.id) ? shortlist.delete(s.id) : shortlist.add(s.id);
+  try { localStorage.setItem("hkSchoolShortlist", JSON.stringify([...shortlist])); } catch (e) {}
+  renderShortlist();
+}
+function schoolLinks(list) {
+  return list.map(s => `<a href="#" data-id="${esc(s.id)}">${esc(displayName(s))}</a>`).join("");
+}
+function wireSchoolLinks(el) {
+  el.querySelectorAll("a[data-id]").forEach(a => a.onclick = e => {
+    e.preventDefault();
+    const s = SCHOOLS.find(x => x.id === a.dataset.id);
+    map.setView([s.lat, s.lon], 16); selectSchool(s);
+  });
+}
+function renderShortlist() {
+  const el = document.getElementById("shortlist");
+  const list = SCHOOLS.filter(s => shortlist.has(s.id));
+  if (!list.length) { el.textContent = "Click the ♡ on a school to add it here."; return; }
+  el.innerHTML = schoolLinks(list).replace(/<a /g, '<div style="margin:6px 0"><a ').replace(/<\/a>/g, "</a></div>");
+  wireSchoolLinks(el);
+}
+renderShortlist();
+
+// ---------- "Your home" card: which nets you are in, and the primaries you can choose ----------
+function renderHomeCard() {
+  const el = document.getElementById("homeCard");
+  if (!homeMarker) { el.innerHTML = ""; return; }
+  if (!homeNet) {
+    el.innerHTML = `<div class="home-card"><h3>🏠 Your home</h3>This spot is outside the Hong Kong Island school nets. This map only covers Hong Kong Island.</div>`;
+    return;
+  }
+  const f = netFeature(homeNet);
+  const sspa = POA_TO_SSPA[homeNet];
+  const prims = SCHOOLS.filter(s => s.inPOA && s.poaNet === homeNet && !s.notInBooklet);
+  el.innerHTML = `<div class="home-card"><h3>🏠 Your home</h3>
+    <b>Primary One school net ${esc(homeNet)}</b><br><span class="note">${esc(f.properties.areas)}</span><br>
+    <b>Secondary school net ${esc(sspa)}</b> (${esc(SSPA_NAMES[sspa])})<br><br>
+    <b>${prims.length} government and aided primaries in your net</b> (your Central Allocation choices):
+    ${schoolLinks(prims)}</div>`;
+  wireSchoolLinks(el);
+}
+
+// ---------- Search: school by name (English or Chinese) ----------
+document.getElementById("schoolSearch").addEventListener("change", e => {
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return;
+  const s = SCHOOLS.find(x => `${x.name} ${x.nameZh}`.toLowerCase() === q) ||
+            SCHOOLS.find(x => x.name.toLowerCase() === q || x.nameZh === q) ||
+            SCHOOLS.find(x => x.name.toLowerCase().includes(q) || x.nameZh.includes(q));
+  if (!s) { toast("No school found matching that name"); return; }
+  map.setView([s.lat, s.lon], 16);
+  selectSchool(s);
+  e.target.value = "";
+});
+
+// ---------- Search: address, using the HK government's free Address Lookup Service ----------
+// Hong Kong has no postcodes, so we search by street address, building or estate name.
+async function findLocation(text) {
+  const q = text.trim();
+  if (!q) return null;
+  const r = await fetch("https://www.als.gov.hk/lookup?n=1&q=" + encodeURIComponent(q), { headers: { Accept: "application/json" } });
+  const j = await r.json();
+  const hit = j.SuggestedAddress && j.SuggestedAddress[0];
+  if (!hit) return null;
+  const a = hit.Address.PremisesAddress;
+  const g = a.GeospatialInformation;
+  const e = a.EngPremisesAddress || {};
+  // Build a readable label so the user can check we found the right place.
+  const label = [e.BuildingName, e.EngEstate && e.EngEstate.EstateName,
+    e.EngStreet && [e.EngStreet.BuildingNoFrom, e.EngStreet.StreetName].filter(Boolean).join(" "),
+    e.EngDistrict && e.EngDistrict.DcDistrict].filter(Boolean).join(", ");
+  return { lat: Number(g.Latitude), lon: Number(g.Longitude), label: label || q };
+}
+
+function goTo(loc) {
+  map.setView([loc.lat, loc.lon], 15);
+  if (document.getElementById("homeCheck").checked) {
+    if (homeMarker) map.removeLayer(homeMarker);
+    homeMarker = L.marker([loc.lat, loc.lon], {
+      icon: L.divIcon({ className: "", html: '<div style="font-size:30px;line-height:30px">🏠</div>', iconSize: [30, 30], iconAnchor: [15, 28] }),
+      zIndexOffset: 1000,
+    }).addTo(map).bindTooltip("Home: " + loc.label);
+    homeNet = netAt(loc.lat, loc.lon);
+    renderHomeCard();
+    if (selected) renderPanel(selected);
+  }
+}
+
+async function searchLocation() {
+  const msg = document.getElementById("locMsg");
+  msg.textContent = ""; msg.className = "msg";
+  try {
+    const loc = await findLocation(document.getElementById("locInput").value);
+    if (!loc) { msg.textContent = "Couldn't find that address. Try a building or estate name and street."; return; }
+    msg.textContent = "Found: " + loc.label; msg.className = "msg ok";
+    goTo(loc);
+  } catch (e) {
+    msg.textContent = "Address search needs an internet connection.";
+  }
+}
+document.getElementById("locGo").addEventListener("click", searchLocation);
+document.getElementById("locInput").addEventListener("keydown", e => { if (e.key === "Enter") searchLocation(); });
+document.getElementById("myLoc").addEventListener("click", () => {
+  if (!navigator.geolocation) return toast("Your browser can't share its location");
+  navigator.geolocation.getCurrentPosition(
+    p => goTo({ lat: p.coords.latitude, lon: p.coords.longitude, label: "my location" }),
+    () => toast("Location permission was refused")
+  );
+});
+document.getElementById("homeCheck").addEventListener("change", e => {
+  if (!e.target.checked && homeMarker) { map.removeLayer(homeMarker); homeMarker = null; homeNet = ""; renderHomeCard(); if (selected) renderPanel(selected); }
+});
+
+// ---------- Menu, key, guide, toast ----------
+document.getElementById("menuBtn").addEventListener("click", () => document.getElementById("menu").classList.add("open"));
+document.getElementById("menuClose").addEventListener("click", () => document.getElementById("menu").classList.remove("open"));
+document.getElementById("keyBtn").addEventListener("click", () => document.getElementById("key").classList.toggle("open"));
+// The England comparison lives in its own page next to this one.
+document.getElementById("guideBtn").addEventListener("click", () => window.open("guide.html", "_blank"));
+function toast(text) {
+  const t = document.getElementById("toast");
+  t.textContent = text; t.style.display = "block";
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.style.display = "none", 2500);
+}
+
+// Markers are re-created when they re-enter the map, so re-apply the "selected" outline.
+map.on("layeradd", e => {
+  if (selected && e.layer === markers[selected.id]) e.layer.getElement()?.querySelector(".pin")?.classList.add("selected");
+});
+
+// ---------- Start ----------
+setLabels();
+drawNets();
+applyFilters();
+</script>
+</body>
+</html>
