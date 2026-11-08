@@ -101,6 +101,30 @@
   #key.open { display: block; }
   #key div { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
   #key .sq { width: 14px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,.3); flex: none; }
+  #key .key-title { display: flex; justify-content: space-between; font-weight: 700; margin: 0 0 6px; }
+  #key .key-title button { background: none; border: 0; font-size: 18px; line-height: 1; cursor: pointer; color: var(--muted); padding: 0; }
+  #key .n { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ---------- Introduction window (shown on first visit) ---------- */
+  #intro { position: absolute; inset: 0; z-index: 1300; background: rgba(20,25,35,.55); display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 16px; }
+  #intro.open { display: flex; }
+  .intro-card { background: #fff; border-radius: 10px; max-width: 680px; width: 100%; padding: 22px 24px; box-shadow: 0 6px 24px rgba(0,0,0,.3); font-size: 14px; line-height: 1.55; }
+  .intro-card h2 { margin: 0 0 4px; font-size: 22px; }
+  .intro-card h3 { margin: 20px 0 8px; font-size: 16px; }
+  .intro-card .lede { color: var(--muted); margin: 0 0 8px; }
+  .stages { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 8px 0; }
+  .stage { background: var(--soft); border-radius: 6px; padding: 8px 10px; }
+  .stage b { display: block; }
+  .intro-card ul { margin: 6px 0; padding-left: 20px; }
+  .intro-card li { margin: 4px 0; }
+  table.types { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.types th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  table.types td { padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.types td:first-child { white-space: nowrap; font-weight: 600; }
+  table.types .sq { display: inline-block; width: 14px; height: 16px; border-radius: 3px; border: 1px solid rgba(0,0,0,.3); vertical-align: -3px; margin-right: 6px; }
+  .types-wrap { overflow-x: auto; }
+  .intro-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 18px; }
+  .btn.blue { background: #2f6fd0; }
 
   #toast { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); z-index: 1200; background: rgba(30,30,30,.85); color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 13px; display: none; }
 
@@ -114,21 +138,70 @@
 
 <div class="top-buttons">
   <button class="btn purple" id="deselectBtn" hidden>Deselect</button>
+  <button class="btn blue" id="introBtn">Introduction</button>
   <button class="btn teal" id="guideBtn">HK vs England</button>
   <button class="btn" id="menuBtn">Menu</button>
 </div>
 
 <button class="btn" id="keyBtn">Key</button>
+<!-- The colour key. It starts open on bigger screens (see "Start" at the bottom).
+     The numbers in class "n" are filled in from SCHOOLS when the page loads. -->
 <div id="key">
-  <div><span class="sq" style="background:var(--gov)"></span>Government (free, in the state allocation system)</div>
-  <div><span class="sq" style="background:var(--aided)"></span>Aided (free, run by a charity or church)</div>
-  <div><span class="sq" style="background:var(--dss)"></span>Direct Subsidy Scheme (fee-paying, apply direct)</div>
-  <div><span class="sq" style="background:var(--esf)"></span>English Schools Foundation</div>
-  <div><span class="sq" style="background:var(--intl)"></span>International school</div>
-  <div><span class="sq" style="background:var(--private)"></span>Private local school</div>
-  <div><span class="sq" style="background:var(--kg)"></span>Kindergarten</div>
-  <div><span class="sq" style="background:var(--special)"></span>Special school</div>
-  <div class="note" style="display:block">Letter on the pin: K = kindergarten, P = primary, S = secondary.<br>Coloured outlines = Primary One school nets.</div>
+  <div class="key-title">What the colours mean <button id="keyClose" title="Hide key">×</button></div>
+  <div><span class="sq" style="background:var(--gov)"></span>Government: free<span class="n" data-kind="gov"></span></div>
+  <div><span class="sq" style="background:var(--aided)"></span>Aided: free, church or charity run<span class="n" data-kind="aided"></span></div>
+  <div><span class="sq" style="background:var(--dss)"></span>Direct Subsidy Scheme: fees<span class="n" data-kind="dss"></span></div>
+  <div><span class="sq" style="background:var(--esf)"></span>English Schools Foundation<span class="n" data-kind="esf"></span></div>
+  <div><span class="sq" style="background:var(--intl)"></span>International<span class="n" data-kind="intl"></span></div>
+  <div><span class="sq" style="background:var(--private)"></span>Private local<span class="n" data-kind="private"></span></div>
+  <div><span class="sq" style="background:var(--kg)"></span>Kindergarten<span class="n" data-kind="kg"></span></div>
+  <div><span class="sq" style="background:var(--special)"></span>Special school<span class="n" data-kind="special"></span></div>
+  <div class="note" style="display:block">Letter on the pin: K = kindergarten, P = primary, S = secondary. Numbers = schools on the island.<br>Outlined areas = Primary One school nets.<br><a href="#" id="keyMore">What these types mean</a></div>
+</div>
+
+<!-- Introduction to the Hong Kong school system. Opens on the first visit,
+     and again from the "Introduction" button. -->
+<div id="intro">
+  <div class="intro-card" role="dialog" aria-labelledby="introTitle">
+    <h2 id="introTitle">Schools on Hong Kong Island</h2>
+    <p class="lede">A map of every school on the island, with the Primary One school nets that decide which free state primaries your child can be allocated to.</p>
+
+    <h3>How schooling works in Hong Kong</h3>
+    <div class="stages">
+      <div class="stage"><b>Kindergarten K1-K3</b>Age 3 to 6. All privately run. Most join the government's free scheme. You apply direct to each one.</div>
+      <div class="stage"><b>Primary P1-P6</b>Age 6 to 12. Free state places are allocated centrally (Primary One Admission).</div>
+      <div class="stage"><b>Secondary S1-S6</b>Age 12 to 18. Allocated centrally by ability band. Ends with the HKDSE exam, the local equivalent of A-levels.</div>
+    </div>
+    <ul>
+      <li><b>The year starts in September, and the age cut-off is the calendar year.</b> Children born in 2021 start Primary One in September 2027.</li>
+      <li><b>Your address puts you in a school net, not a catchment around a school.</b> The outlined areas on the map are the five Primary One nets on the island (11, 12, 14, 16 and 18). Distance to a school earns nothing.</li>
+      <li><b>Primary One has two rounds.</b> In September you apply to one free school in any net, and siblings and points (such as a parent who went there) decide. In January you rank schools in your net, and a computer lottery decides who gets the places that are left.</li>
+      <li><b>Secondary places go by band.</b> Children are put in one of three bands using their Primary 5 and 6 marks, and the higher bands are allocated first.</li>
+      <li><b>Most free state schools teach in Cantonese</b>, using traditional Chinese characters. English-medium teaching is mainly at some secondaries and at fee-paying schools.</li>
+      <li><b>There are no inspection grades or league tables.</b> That's why the pins show the type of school, not how good it is.</li>
+    </ul>
+
+    <h3>What the colours mean</h3>
+    <div class="types-wrap">
+    <table class="types">
+      <tr><th>Type</th><th>Cost</th><th>How you get a place</th></tr>
+      <tr><td><span class="sq" style="background:var(--gov)"></span>Government</td><td>Free</td><td>Central allocation by school net (primary) or band (secondary). Run directly by the Education Bureau. Mostly non-religious.</td></tr>
+      <tr><td><span class="sq" style="background:var(--aided)"></span>Aided</td><td>Free</td><td>Same central allocation as government schools. Run by a church, charity or other sponsor and paid for by the government, a bit like a voluntary-aided school in England. Many are Christian or Catholic.</td></tr>
+      <tr><td><span class="sq" style="background:var(--dss)"></span>Direct Subsidy Scheme (DSS)</td><td>Fees, varying a lot by school</td><td>Apply direct to the school, which may interview. Partly government-funded but sets its own curriculum, language and admissions. Fees are shown in each school's panel.</td></tr>
+      <tr><td><span class="sq" style="background:var(--esf)"></span>English Schools Foundation (ESF)</td><td>High fees</td><td>English-language schools teaching the IB. Apply through ESF. For primaries, your home address decides which ESF school you're offered, the closest thing here to an English catchment.</td></tr>
+      <tr><td><span class="sq" style="background:var(--intl)"></span>International</td><td>High fees, often a debenture or levy too</td><td>Apply direct. Often British, American, Canadian, French or German curricula. Popular ones have long waiting lists.</td></tr>
+      <tr><td><span class="sq" style="background:var(--private)"></span>Private local</td><td>Fees</td><td>Apply direct. Independent schools, usually following the local curriculum.</td></tr>
+      <tr><td><span class="sq" style="background:var(--kg)"></span>Kindergarten</td><td>Free half-day at scheme kindergartens; fees otherwise</td><td>Apply direct, usually about a year ahead. Popular ones interview toddlers. Accepting a K1 place needs a registration certificate from the Education Bureau.</td></tr>
+      <tr><td><span class="sq" style="background:var(--special)"></span>Special school</td><td>Free</td><td>For children with special educational needs. Places are arranged through the Education Bureau after an assessment, not through the normal allocation.</td></tr>
+    </table>
+    </div>
+    <p class="note">The letter on each pin is the stage: K kindergarten, P primary, S secondary. Click a pin for its details, or open Menu to search your address and see your net.</p>
+
+    <div class="intro-actions">
+      <button class="btn teal" id="introGuide">Full guide: HK vs England</button>
+      <button class="btn blue" id="introClose">Show the map</button>
+    </div>
+  </div>
 </div>
 <div id="toast"></div>
 
@@ -745,8 +818,30 @@ document.getElementById("homeCheck").addEventListener("change", e => {
 document.getElementById("menuBtn").addEventListener("click", () => document.getElementById("menu").classList.add("open"));
 document.getElementById("menuClose").addEventListener("click", () => document.getElementById("menu").classList.remove("open"));
 document.getElementById("keyBtn").addEventListener("click", () => document.getElementById("key").classList.toggle("open"));
+document.getElementById("keyClose").addEventListener("click", () => document.getElementById("key").classList.remove("open"));
 // The England comparison lives in its own page next to this one.
 document.getElementById("guideBtn").addEventListener("click", () => window.open("guide.html", "_blank"));
+
+// Introduction window. We remember (in this browser only) that it has been seen,
+// so it opens by itself on the first visit but not every time after that.
+const INTRO_SEEN = "hkIntroSeen";
+function openIntro() { document.getElementById("intro").classList.add("open"); }
+function closeIntro() {
+  document.getElementById("intro").classList.remove("open");
+  try { localStorage.setItem(INTRO_SEEN, "1"); } catch (e) { /* private browsing: just show it again next time */ }
+}
+document.getElementById("introBtn").addEventListener("click", openIntro);
+document.getElementById("introClose").addEventListener("click", closeIntro);
+document.getElementById("introGuide").addEventListener("click", () => window.open("guide.html", "_blank"));
+document.getElementById("keyMore").addEventListener("click", e => { e.preventDefault(); openIntro(); });
+// Clicking the dark area around the window, or pressing Escape, also closes it.
+document.getElementById("intro").addEventListener("click", e => { if (e.target.id === "intro") closeIntro(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && document.getElementById("intro").classList.contains("open")) closeIntro(); });
+
+// Fill in how many schools of each colour there are on the island.
+document.querySelectorAll("#key .n").forEach(span => {
+  span.textContent = SCHOOLS.filter(s => s.kind === span.dataset.kind).length;
+});
 function toast(text) {
   const t = document.getElementById("toast");
   t.textContent = text; t.style.display = "block";
@@ -762,6 +857,12 @@ map.on("layeradd", e => {
 setLabels();
 drawNets();
 applyFilters();
+// Show the colour key from the start, except on phones where it would cover the map.
+if (window.innerWidth > 700) document.getElementById("key").classList.add("open");
+// First visit: show the introduction.
+let introSeen = false;
+try { introSeen = localStorage.getItem(INTRO_SEEN) === "1"; } catch (e) {}
+if (!introSeen) openIntro();
 </script>
 </body>
 </html>
