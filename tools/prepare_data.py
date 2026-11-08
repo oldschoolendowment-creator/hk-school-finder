@@ -16,6 +16,10 @@ Inputs (all in data-raw/, all downloaded from Hong Kong government open data):
   chsc_primary_profiles.csv  Primary School Profiles 2026, English (Committee on Home-School
                              Co-operation, data.gov.hk): teaching language, feeder and nominated
                              secondary schools, tests and exams, school hours, teachers, classes
+  esr_reports.csv            External School Review reports (concluding chapter) published by the
+                             EDB since 2023/24: school year, school name, link to the PDF. Built
+                             from the three year pages linked from
+                             https://www.edb.gov.hk/en/sch-admin/sch-quality-assurance/reports/esr-report/index.html
 """
 import csv, io, json, re, os, datetime
 from collections import defaultdict
@@ -259,6 +263,16 @@ with open(raw("chsc_primary_profiles.csv"), encoding="utf-8-sig") as fh:
         psp_by_name[norm(d["school_name"])] = p
         psp_by_phone[re.sub(r"\D", "", d["school_tel"])] = p
 
+# ---------- External School Review reports (the nearest thing to Ofsted reports) ----------
+# The EDB's list gives "English name 中文名", so we match on the start of the name.
+esr = defaultdict(list)
+with open(raw("esr_reports.csv"), encoding="utf-8") as fh:
+    for row in csv.DictReader(fh):
+        english = re.split(r"[一-鿿]", row["school_name"])[0]
+        esr[norm(english)].append({"year": row["school_year"], "url": row["report_url"]})
+for reports in esr.values():
+    reports.sort(key=lambda r: r["year"], reverse=True)  # newest first
+
 # ---------- Schools ----------
 FINANCE = {"GOVERNMENT": "Government", "AIDED": "Aided", "DIRECT SUBSIDY SCHEME": "DSS",
            "ENGLISH SCHOOLS FOUNDATION": "ESF", "PRIVATE INDEPENDENT SCH SCHEME": "Private (PIS)", "PRIVATE": "Private"}
@@ -325,6 +339,8 @@ for x in data:
         prof = psp_by_name.get(norm(s["name"])) or psp_by_phone.get(re.sub(r"\D", "", s["phone"]))
         if prof:
             s["psp"] = prof
+    if level != "Kindergarten" and norm(s["name"]) in esr:
+        s["esr"] = esr[norm(s["name"])]
     if level == "Kindergarten" and num6 in kg:
         s["kg"] = kg[num6]
         if not s["website"] and kg[num6]["website"]:
@@ -338,6 +354,7 @@ if missing_p1:
 print(f"{len(out)} schools; by type:", dict(sorted(defaultdict(int, {k: sum(1 for s in out if s['kind'] == k) for k in set(s['kind'] for s in out)}).items())))
 print("Through-train matches:", sum(1 for s in out if "throughTrain" in s), "| DSS fee matches:", sum(1 for s in out if "fees" in s),
       "| KG profiles:", sum(1 for s in out if "kg" in s), "| SSPA:", sum(1 for s in out if "sspaNet" in s),
+      "| Review reports:", sum(1 for s in out if "esr" in s),
       "| Primary profiles:", sum(1 for s in out if "psp" in s), "of", len(psp_by_name))
 
 info = {"built": datetime.date.today().strftime("%-d %b %Y"), "p1Booklet": booklet_date,

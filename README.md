@@ -26,6 +26,7 @@ Double-click `index.html`. It needs an internet connection for the map backgroun
 | `dssinfo.csv`, `dssfee.csv` | Direct Subsidy Scheme schools and fees | [EDB DSS schools](https://data.gov.hk/en-data/dataset/hk-edb-dss-dds-school-list) |
 | `kg_profiles.csv` | Kindergarten profiles 2025/26 | [EDB Kindergarten Profiles](https://data.gov.hk/en-data/dataset/hk-edb-kgjoinkes-kg-profile) |
 | `chsc_primary_profiles.csv` | Primary School Profiles 2026 (English): teaching language, feeder/nominated/through-train secondaries, tests and exams, school day, teachers, classes. Covers government, aided, DSS and some private primaries, not ESF or international | [CHSC Primary School Profiles](https://data.gov.hk/en-data/dataset/chsc-chsc-primary-school-profiles) (`psp_2026_en.csv`) |
+| `esr_reports.csv` | External School Review reports (concluding chapter), 2023/24 to 2025/26: the nearest thing to Ofsted reports, with no grade | [EDB ESR reports](https://www.edb.gov.hk/en/sch-admin/sch-quality-assurance/reports/esr-report/index.html), built from the three year pages |
 | `net.csv` | List of nets and the areas they cover | Same as the net boundaries |
 
 Address search uses the government [Address Lookup Service](https://www.als.gov.hk), live from the browser. Hong Kong has no postcodes, so you type a building, estate or street.
@@ -40,7 +41,7 @@ The P1 booklet comes out each August for the following year's entry.
 
 ## What is not in it, and why
 
-- **No quality ratings.** Hong Kong publishes no Ofsted-style grades or school league tables, so pins are coloured by type of school.
+- **No quality ratings.** Hong Kong publishes no Ofsted-style grades or school league tables, so pins are coloured by type of school. Each school's Inspection section links to its External School Review report where one has been published (21 Island schools so far).
 - **No ESF catchment maps.** ESF assigns schools by home address but doesn't publish its catchments as data.
 - **Secondary school profiles** (CHSC publishes these too) aren't added yet; only primaries have a School Profile section.
 - **schooland.hk** was considered but not used: its terms forbid republishing its content, and the parts the app needed come from the official profiles above.

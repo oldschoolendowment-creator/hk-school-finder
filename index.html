@@ -178,7 +178,7 @@
       <li><b>Primary One has two rounds.</b> In September you apply to one free school in any net, and siblings and points (such as a parent who went there) decide. In January you rank schools in your net, and a computer lottery decides who gets the places that are left.</li>
       <li><b>Secondary places go by band.</b> Children are put in one of three bands using their Primary 5 and 6 marks, and the higher bands are allocated first.</li>
       <li><b>Most free state schools teach in Cantonese</b>, using traditional Chinese characters. English-medium teaching is mainly at some secondaries and at fee-paying schools.</li>
-      <li><b>There are no inspection grades or league tables.</b> That's why the pins show the type of school, not how good it is.</li>
+      <li><b>There are no inspection grades or league tables.</b> That's why the pins show the type of school, not how good it is. The nearest thing to Ofsted is the Education Bureau's External School Review, a written report with no grade; where one has been published, it's linked in the school's Inspection section.</li>
     </ul>
 
     <h3>What the colours mean</h3>
@@ -505,6 +505,7 @@ function applyFilters() {
     `• Secondary nets served: EDB "SSPA System School Net Information".<br>` +
     `• DSS fees, through-train schools and kindergarten profiles: EDB.<br>` +
     `• Primary school profiles (teaching language, feeder and nominated secondaries, tests, school day, teachers): Committee on Home-School Co-operation, "Primary School Profiles 2026".<br>` +
+    `• Inspection reports: EDB "External School Review Reports (Concluding Chapter)", 2023/24 to 2025/26.<br>` +
     `• Address search: the government Address Lookup Service (als.gov.hk).<br><br>` +
     `Hong Kong publishes <b>no</b> official league tables, exam results by school or inspection grades like Ofsted's, so pins are coloured by type of school, not quality. Secondary "banding" figures you see on property and tutoring websites are unofficial.`;
 })();
@@ -661,6 +662,29 @@ function profileSection(p) {
   ]) + `<p class="note">From the Primary School Profiles 2026, published by the Committee on Home-School Co-operation for the Education Bureau. Full profile, including the school's own description: ${link("https://www.chsc.hk/primary/en/", "chsc.hk")}.</p>`];
 }
 
+// "Inspection": Hong Kong's nearest equivalent to Ofsted. There are no grades, only written
+// reports. Kindergartens have their own Quality Review, shown in the Kindergarten Profile.
+function inspectionSection(s) {
+  const intro = `<p>Hong Kong has <b>no inspection grades</b> like Ofsted's Outstanding / Good / Requires improvement. The nearest equivalent is the Education Bureau's <b>External School Review</b>: inspectors visit for several days and write a report on the school's strengths and what it should improve. Only the report's concluding chapter is published, and only since 2023/24. Each school is reviewed every few years, so most schools don't have a published report yet.</p>`;
+  const more = `<p class="note">${link("https://www.edb.gov.hk/en/sch-admin/sch-quality-assurance/reports/esr-report/index.html", "All published review reports (EDB)")}</p>`;
+  if (s.kind === "kg") {
+    return ["✓", "Inspection", `<span class="badge">See KG profile</span>`,
+      `<p>Kindergartens in the government scheme get a <b>Quality Review</b> from the Education Bureau. It says whether the kindergarten meets the required standard; the result and report link are in the Kindergarten Profile section below.</p>`];
+  }
+  if (s.esr && s.esr.length) {
+    const r = s.esr[0];
+    return ["✓", "Inspection", `<span class="badge green">Reviewed ${esc(r.year)}</span>`,
+      kvTable(s.esr.map(x => [`External School Review ${esc(x.year)}`, link(x.url, "Read the concluding chapter (PDF)")])) +
+      `<p class="note">The report is written text with no grade. It usually covers the school's strengths in leadership, teaching and pupil support, then what it should work on. The English version is a translation; the Chinese original prevails.</p>` +
+      intro + more];
+  }
+  const outside = ["esf", "intl", "private"].includes(s.kind);
+  return ["✓", "Inspection", `<span class="badge">No report</span>`,
+    (outside
+      ? `<p>This school isn't in the Education Bureau's review programme, so there is no government inspection report. International and ESF schools may be accredited by bodies such as the Council of International Schools or the IB; check the school's website.</p>`
+      : `<p>No External School Review report for this school has been published since 2023/24.</p>`) + intro + more];
+}
+
 // Each section: icon, title, badge HTML (shown next to the +), body HTML (shown when opened).
 function sections(s) {
   const out = [];
@@ -688,6 +712,7 @@ function sections(s) {
       `<p class="note">Fees for the 2025/26 school year, from the Education Bureau. DSS schools must offer fee remission to some families on lower incomes.</p>`]);
   }
 
+  out.push(inspectionSection(s));
   if (s.psp) out.push(profileSection(s.psp));
 
   if (s.kg) {
